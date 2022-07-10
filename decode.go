@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"encoding"
 	"encoding/base64"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"reflect"
@@ -723,97 +722,6 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		return
 	}
 
-	if item[0] == '"' {
-		ok := true
-
-		var buf bytes.Buffer
-		switch v.Type().String() {
-		case "float64":
-			u, _, _ = d.indirect(reflect.ValueOf("float64"), true)
-			pv, err := strconv.ParseFloat(string(item), 64)
-			if err != nil {
-				ok = false
-			}
-			err = binary.Write(&buf, binary.BigEndian, pv)
-			if err != nil {
-				ok = false
-			} else {
-				item = buf.Bytes()
-			}
-		case "float32":
-			u, _, _ = d.indirect(reflect.ValueOf("float32"), true)
-			pv, err := strconv.ParseFloat(string(item), 32)
-			if err != nil {
-				ok = false
-			}
-			err = binary.Write(&buf, binary.BigEndian, pv)
-			if err != nil {
-				ok = false
-			} else {
-				item = buf.Bytes()
-			}
-		case "int":
-			u, _, _ = d.indirect(reflect.ValueOf("int"), true)
-			pv, err := strconv.ParseInt(string(item), 10, 8)
-			if err != nil {
-				ok = false
-			}
-			err = binary.Write(&buf, binary.BigEndian, pv)
-			if err != nil {
-				ok = false
-			} else {
-				item = buf.Bytes()
-			}
-		case "int16":
-			u, _, _ = d.indirect(reflect.ValueOf("int16"), true)
-			pv, err := strconv.ParseInt(string(item), 10, 16)
-			if err != nil {
-				ok = false
-			}
-			err = binary.Write(&buf, binary.BigEndian, pv)
-			if err != nil {
-				ok = false
-			} else {
-				item = buf.Bytes()
-			}
-		case "int32":
-			u, _, _ = d.indirect(reflect.ValueOf("int32"), true)
-			pv, err := strconv.ParseInt(string(item), 10, 32)
-			if err != nil {
-				ok = false
-			}
-			err = binary.Write(&buf, binary.BigEndian, pv)
-			if err != nil {
-				ok = false
-			} else {
-				item = buf.Bytes()
-			}
-		case "int64":
-			u, _, _ = d.indirect(reflect.ValueOf("int64"), true)
-			pv, err := strconv.ParseInt(string(item), 10, 64)
-			if err != nil {
-				ok = false
-			}
-			err = binary.Write(&buf, binary.BigEndian, pv)
-			if err != nil {
-				ok = false
-			} else {
-				item = buf.Bytes()
-			}
-		default:
-			ok = false
-		}
-
-		if ok {
-			fmt.Println("===", string(item))
-			err := u.UnmarshalJSON(item)
-			if err != nil {
-				d.error(err)
-			}
-			return
-		}
-	}
-
 	if ut != nil {
 		if item[0] != '"' {
 			if fromQuoted {
@@ -898,6 +806,30 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 			} else {
 				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.peekPos() + 1)})
 			}
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			n, err := strconv.ParseInt(string(s), 10, 64)
+			if err != nil || v.OverflowInt(n) {
+				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.peekPos() + 1)})
+				break
+			}
+			v.SetInt(n)
+
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+			n, err := strconv.ParseUint(string(s), 10, 64)
+			if err != nil || v.OverflowUint(n) {
+				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.peekPos() + 1)})
+				break
+			}
+			v.SetUint(n)
+
+		case reflect.Float32, reflect.Float64:
+			n, err := strconv.ParseFloat(string(s), v.Type().Bits())
+			if err != nil || v.OverflowFloat(n) {
+				d.saveError(&UnmarshalTypeError{"string", v.Type(), int64(d.peekPos() + 1)})
+				break
+			}
+			v.SetFloat(n)
+
 		}
 
 	default: // number
