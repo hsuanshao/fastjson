@@ -15,7 +15,7 @@ If `.json` has a lot of strings or numbers, fastjson is significantly faster tha
 ##Example
 ```Go
 import (
-    "github.com/intel-go/fastjson"
+    "github.com/hsuanshao/fastjson"
     "fmt"
 )
 
