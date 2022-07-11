@@ -5,7 +5,7 @@ The `Unmarshal` and `Decode` functions are faster, but everything else is the sa
 
 ## Getting Started
 ```
-$go get github.com/intel-go/fastjson
+$go get github.com/hsuanshao/fastjson
 ```
 ##Perfomance
 The performance depends on the content of your json structures, not the structure you parse to.
